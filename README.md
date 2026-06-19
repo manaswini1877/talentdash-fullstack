@@ -3,8 +3,8 @@
 > Structured, comparable, decision-ready career data served at internet scale.  
 > Built as a full-stack engineering trial task covering schema design, API development, static generation, SEO, and real-time data pipelines.
 
-**Live URL:** [https://your-vercel-url.vercel.app](https://your-vercel-url.vercel.app)  
-**GitHub:** [https://github.com/yourusername/talentdash-fullstack](https://github.com/yourusername/talentdash-fullstack)
+**Live URL:** [https://your-vercel-url.vercel.app](https://talentdash-fullstack.onrender.com)  
+**GitHub:** [https://github.com/yourusername/talentdash-fullstack](https://github.com/manaswini1877/talentdash-fullstack)
 
 ---
 
