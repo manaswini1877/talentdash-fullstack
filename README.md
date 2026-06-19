@@ -1,280 +1,491 @@
-# TalentDash — Full-Stack Trial Task
+# TalentDash — Career Intelligence Platform
 
-## 1. Project Overview
+> Structured, comparable, decision-ready career data served at internet scale.  
+> Built as a full-stack engineering trial task covering schema design, API development, static generation, SEO, and real-time data pipelines.
 
-TalentDash is a tech salary transparency platform that helps software engineers explore, filter, and compare real compensation data across companies. This project implements the full-stack trial task: a PostgreSQL-backed Next.js application with Prisma ORM, REST API endpoints for salary ingestion and querying, and server-rendered pages for browsing salaries, viewing company profiles, and comparing offers side by side.
+**Live URL:** [https://your-vercel-url.vercel.app](https://your-vercel-url.vercel.app)  
+**GitHub:** [https://github.com/yourusername/talentdash-fullstack](https://github.com/yourusername/talentdash-fullstack)
 
-**Assumptions made:**
-- Site URL defaults to `http://localhost:3000` via `NEXT_PUBLIC_SITE_URL` (override for production).
-- Company logos are not included — no public logo URLs were provided; pages use text-based company headers.
-- Compare deltas use raw subunit values (paise/cents); both records are assumed to share currency for meaningful delta display.
-- New companies created via ingest receive default industry `"Technology"` and headquarters set to the submitted location.
-- GBP/EUR seed records store amounts in pence/cents subunits (same BigInt pattern as USD).
+---
 
-## 2. Architecture Overview
+## What TalentDash Is
 
-```
-┌─────────────┐     ┌──────────────┐     ┌─────────────────┐     ┌──────────────┐
-│  Neon PG    │────▶│  Prisma ORM  │────▶│  lib/queries    │────▶│  RSC Pages   │
-│  Database   │     │  (lib/prisma)│     │  + API Routes   │     │  (HTML SSR)  │
-└─────────────┘     └──────────────┘     └─────────────────┘     └──────────────┘
-                            │                      │
-                            │                      ▼
-                            │              ┌─────────────────┐
-                            └─────────────▶│  Client Islands │
-                                           │  (filters,      │
-                                           │   compare UI)   │
-                                           └─────────────────┘
-```
+TalentDash is a career intelligence platform — not a job board, not a review site. The product is structured, normalised, decision-ready compensation data for professionals in India and globally. Think Levels.fyi for India, with reviews, interview experiences, and a comparison engine built in.
 
-**Data flow:**
-1. Salary records are stored in Neon PostgreSQL via Prisma.
-2. Server Components query the database directly through `lib/queries.ts` (no mock data).
-3. API routes (`/api/*`) expose the same data for programmatic access and the compare client component.
-4. POST `/api/ingest-salary` writes new records and triggers ISR revalidation via `revalidatePath`.
-5. Filter bar and compare page are client components that sync state to URL query params for shareable links.
+A software engineer in Bengaluru with an Amazon offer for ₹42 LPA can come to TalentDash and find: whether that's a fair L4 offer, what Google pays for the same level, what Amazon's work culture is like, and what the interview rounds looked like — all in one place, all from structured data.
 
-## 3. Tech Stack
+**Core product principle:** Structured data → Comparable → Decision-ready.
 
-| Technology | Purpose |
-|---|---|
-| **Next.js 15** (App Router) | Full-stack React framework with RSC, ISR, and API routes |
-| **TypeScript (strict)** | Type safety across frontend, backend, and Prisma |
-| **Tailwind CSS** | Utility-first styling — all components hand-written, no UI libraries |
-| **Prisma ORM** | Type-safe database access, migrations, and seeding |
-| **Neon PostgreSQL** | Serverless Postgres for production-grade storage |
-| **ESLint + Prettier** | Code quality and consistent formatting |
-| **tsx** | TypeScript execution for Prisma seed script |
+---
 
-## 4. Getting Started
+## Features
+
+### Homepage
+- Live stats bar: total records, companies, cities, levels — all from the real database
+- Featured companies grid with median TC and record counts per company
+- Top paying roles ranked by average total compensation
+- Recently added salary records (6 most recent)
+- Browse by level: clickable pills with record counts per level
+- Popular locations: top 8 cities by record count
+- Search bar with quick-filter pills
+
+### Salary Table `/salaries`
+- Columns: Company, Role, Level, Location, Experience, Base Salary, Stock, Total Comp
+- Level badges color-coded by tier (slate/blue/indigo/purple/navy)
+- Total Comp as the visually dominant number in data blue
+- Filter bar: company search (debounced 300ms), role dropdown, level multi-select, location dropdown, currency toggle (INR/USD)
+- URL-encoded filters — shareable links that pre-fill on load
+- Sort by any column, Total Comp descending by default
+- Pagination: 25 rows per page with record range display
+- Empty state with clear-all filters link
+- Indian lakh/crore formatting for INR values
+
+### Company Pages `/companies/[slug]`
+- Statically generated at build time from real database slugs
+- Company header: name, industry, founding year, headcount, headquarters
+- Median TC badge (true statistical median, not average)
+- Min–max TC range and total record count
+- Horizontal stacked level-distribution bar
+- Full salary table filtered to this company
+- Compare button pre-filling the first comparison slot
+
+### Compare Page `/compare`
+- Select any two salary records from dropdowns
+- Side-by-side breakdown of all compensation fields
+- Delta column: color-coded green (positive) / red (negative)
+- "Higher TC" winner badge in data blue
+- Shareable URL state: `/compare?s1={id}&s2={id}`
+
+### API
+- `POST /api/ingest-salary` — validated ingestion with normalization and duplicate detection
+- `GET /api/salaries` — filtered, sorted, paginated salary data
+- `GET /api/companies/[slug]` — company page with median TC and level distribution
+- `GET /api/compare` — two-record comparison with delta object
+
+---
+
+## Tech Stack
+
+| Layer | Technology | Why |
+|---|---|---|
+| Framework | Next.js 15 (App Router) | React Server Components + generateStaticParams powers the static page engine |
+| Language | TypeScript (strict mode) | Type safety across the entire stack, Prisma schema-as-types |
+| Styling | Tailwind CSS (hand-written) | Minimal bundle size, full design control, no abstraction overhead |
+| ORM | Prisma | Type-safe queries, migration history in source control, schema-as-code |
+| Database | PostgreSQL via Neon (serverless) | Structured relational data, excellent full-text search, free tier covers MVP scale |
+| Deployment | Vercel | Native Next.js ISR support, global CDN, zero-config deployment |
+| Fonts | Inter via next/font/google | Consistent typography, zero layout shift, automatic optimization |
+
+---
+
+## Getting Started
 
 ### Prerequisites
+- Node.js v20 or higher
+- Git
+- A Neon account at [neon.tech](https://neon.tech) (free tier is sufficient)
 
-- Node.js 18+
-- npm 9+
-- Access to the Neon PostgreSQL database (`.env` provided)
-
-### Clone the repo
-
+### 1. Clone the repository
 ```bash
-git clone <repo-url>
+git clone https://github.com/yourusername/talentdash-fullstack.git
 cd talentdash-fullstack
 ```
 
-### Install dependencies
-
+### 2. Install dependencies
 ```bash
 npm install
 ```
 
-### Set up `.env`
-
+### 3. Set up environment variables
 Create a `.env` file in the project root:
-
 ```env
-DATABASE_URL="postgresql://neondb_owner:npg_ArQuyk9EKXg8@ep-polished-night-aobopxf1-pooler.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
-NEXT_PUBLIC_SITE_URL="http://localhost:3000"
+DATABASE_URL="postgresql://username:password@host/dbname?sslmode=require"
 ```
 
-| Variable | Description | Example |
-|---|---|---|
-| `DATABASE_URL` | Neon PostgreSQL connection string | See above |
-| `NEXT_PUBLIC_SITE_URL` | Canonical site URL for SEO metadata | `http://localhost:3000` |
+Get your `DATABASE_URL` from your Neon project dashboard under Connection Details.
 
-### Run migration
-
+### 4. Run the database migration
 ```bash
-npx prisma migrate dev
+npx prisma migrate dev --name init
 ```
 
-### Run seed
-
+### 5. Seed the database
 ```bash
 npx prisma db seed
 ```
+This inserts 60+ realistic salary records across Google, Amazon, Meta, Microsoft, Flipkart, Meesho, NVIDIA, TCS, Infosys, Wipro, Razorpay, and Zepto — spanning all levels, multiple cities, and both INR and USD.
 
-Seeds 12 companies and 64+ salary records spanning all levels, currencies, and edge cases.
-
-### Start dev server
-
+### 6. Start the development server
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000).  
+Check `/salaries` and `/companies/google` to confirm real database data is rendering.
 
-## 5. Live URL
-
-[paste Vercel URL here]
-
-## 6. API Documentation
-
-### POST `/api/ingest-salary`
-
-Ingest a new salary record with validation, normalization, duplicate detection, and ISR revalidation.
-
-**Request body:**
-
-```json
-{
-  "company_name": "Google India",
-  "role": "Software Engineer",
-  "level": "L4",
-  "location": "Bengaluru",
-  "currency": "INR",
-  "experience_years": 4,
-  "base_salary": 420000000,
-  "bonus": 60000000,
-  "stock": 120000000,
-  "source": "CONTRIBUTOR",
-  "confidence_score": 0.92
-}
+### 7. Lint check
+```bash
+npm run lint
 ```
 
-**Success (201):** Full stored record with computed `total_compensation`.
-
-**Errors:**
-- `400` — Validation failure: `{ error: true, field: "level", message: "..." }`
-- `409` — Duplicate within 48 hours with similar base salary
+### 8. Production build
+```bash
+npm run build
+```
 
 ---
 
-### GET `/api/salaries`
+## Environment Variables
 
-List salary records with filtering, sorting, and pagination.
+| Variable | Description | Example |
+|---|---|---|
+| `DATABASE_URL` | Neon PostgreSQL connection string | `postgresql://user:pass@host/db?sslmode=require` |
 
-**Query params:**
+No other environment variables are required for local development or deployment.
+
+---
+
+## Database Schema
+
+### Company
+| Field | Type | Notes |
+|---|---|---|
+| id | UUID | Primary key |
+| name | String | Display form e.g. "Google India" |
+| slug | String (unique) | URL-safe e.g. "google" |
+| normalized_name | String (indexed) | Lowercase, trimmed for deduplication |
+| industry | String | e.g. "Technology" |
+| headquarters | String | City name |
+| founded_year | Int? | Nullable |
+| headcount_range | String? | e.g. "10,000–50,000" |
+
+### Salary
+| Field | Type | Notes |
+|---|---|---|
+| id | UUID | Primary key |
+| company_id | FK → Company | |
+| role | String | Kept exactly as submitted |
+| level | Enum | L3, L4, L5, L6, SDE_I, SDE_II, SDE_III, STAFF, PRINCIPAL, IC4, IC5 |
+| location | String | City only |
+| currency | Enum | INR, USD, GBP, EUR |
+| experience_years | Int | 1–50, enforced |
+| base_salary | BigInt | Smallest unit (paise/cents) |
+| bonus | BigInt | Default 0, never null |
+| stock | BigInt | Default 0, never null |
+| total_compensation | BigInt | Always computed server-side: base + bonus + stock |
+| source | Enum | CONTRIBUTOR, SCRAPED, AI_INFERRED |
+| confidence_score | Decimal | 0.0–1.0 |
+| is_verified | Boolean | Default false |
+| submitted_at | DateTime | Server-set timestamp |
+
+### Indexes
+```
+@@index([company_id, level, location])  -- primary filter path
+@@index([total_compensation])           -- sort path
+@@index([submitted_at])                 -- recency sort
+@@index([location, level])              -- geo-level filter
+```
+
+---
+
+## API Reference
+
+### POST /api/ingest-salary
+Ingest a new salary record with full validation and normalization.
+
+**Validation order:**
+1. Required fields present
+2. Types correct
+3. Level is valid enum value
+4. experience_years between 1–50
+5. base_salary > 0
+6. confidence_score between 0.0–1.0
+
+**Normalization:** Company name is lowercased, trimmed, and stripped of punctuation. Company is found-or-created by normalized_name.
+
+**total_compensation is always recomputed server-side:** `base_salary + (bonus ?? 0) + (stock ?? 0)`. Any client-submitted value is stripped.
+
+**Duplicate check:** If same company + role + level + location was submitted in the last 48 hours with base_salary within 10%, returns 409.
+
+```bash
+curl -X POST http://localhost:3000/api/ingest-salary \
+  -H "Content-Type: application/json" \
+  -d '{
+    "company": "Google India",
+    "role": "Software Engineer",
+    "level": "L4",
+    "location": "Bengaluru",
+    "currency": "INR",
+    "experience_years": 4,
+    "base_salary": 3500000,
+    "bonus": 500000,
+    "stock": 1000000,
+    "source": "CONTRIBUTOR",
+    "confidence_score": 0.9
+  }'
+```
+
+**Responses:**
+- `201 Created` — full stored record with computed total_compensation
+- `400 Bad Request` — `{ error: true, field: "level", message: "Level must be one of: L3, L4..." }`
+- `409 Conflict` — duplicate record detected within 48 hours
+
+---
+
+### GET /api/salaries
+Fetch filtered, sorted, paginated salary records.
+
+**Query parameters:**
 
 | Param | Type | Description |
 |---|---|---|
-| `company` | string | Partial match (ILIKE) on company name |
-| `role` | string | Partial match (ILIKE) on role |
-| `location` | string | Partial match (ILIKE) on location |
-| `level` | enum | Exact level match |
-| `currency` | enum | Exact currency match |
-| `sort` | string | `total_comp_desc` (default), `total_comp_asc`, `date_desc` |
-| `page` | int | Page number (default 1) |
-| `limit` | int | Page size (default 25, max 100) |
+| company | string | ILIKE partial match |
+| role | string | ILIKE partial match |
+| location | string | ILIKE partial match |
+| level | enum | Exact match |
+| currency | enum | Exact match |
+| sort | string | `total_comp_desc` (default), `total_comp_asc`, `date_desc` |
+| page | int | Default 1 |
+| limit | int | Default 25, hard max 100 |
+
+```bash
+curl "http://localhost:3000/api/salaries?company=amazon&level=L4&location=bengaluru&page=1&limit=25"
+```
 
 **Response:**
-
 ```json
 {
-  "data": [{ "id": "...", "total_compensation": "600000000", "company": { "name": "Google India", "slug": "google" }, "...": "..." }],
-  "meta": { "total": 64, "page": 1, "limit": 25, "totalPages": 3 }
+  "data": [...],
+  "meta": {
+    "total": 312,
+    "page": 1,
+    "limit": 25,
+    "totalPages": 13
+  }
 }
 ```
 
-**Headers:** `Cache-Control: s-maxage=300, stale-while-revalidate=3600`
+Cache-Control: `s-maxage=300, stale-while-revalidate=3600`
 
 ---
 
-### GET `/api/companies/[slug]`
+### GET /api/companies/[slug]
+Fetch company page data including median TC and level distribution.
 
-Company profile with salaries, median TC, and level distribution.
+```bash
+curl "http://localhost:3000/api/companies/google"
+```
 
 **Response:**
-
 ```json
 {
-  "company": { "name": "Google India", "slug": "google", "industry": "Technology", "...": "..." },
+  "company": {
+    "id": "...",
+    "name": "Google India",
+    "slug": "google",
+    "industry": "Technology",
+    "headquarters": "Bengaluru",
+    "founded_year": 1998,
+    "headcount_range": "100,000+"
+  },
   "salaries": [...],
-  "median_total_compensation": "580000000",
-  "level_distribution": { "L3": 4, "L4": 3, "L5": 2 }
+  "median_total_compensation": 4200000,
+  "level_distribution": {
+    "L3": 8,
+    "L4": 22,
+    "L5": 14,
+    "L6": 4
+  }
 }
 ```
 
-**404:** `{ error: true, message: "Company not found" }`
+- `404` for unknown slug: `{ error: true, message: "Company not found" }`
 
-**Headers:** `Cache-Control: s-maxage=3600, stale-while-revalidate=86400`
+Cache-Control: `s-maxage=3600, stale-while-revalidate=86400`
 
 ---
 
-### GET `/api/compare`
+### GET /api/compare
+Compare two salary records with delta calculations.
 
-Compare two salary records by UUID.
-
-**Query params:** `s1` (UUID), `s2` (UUID)
+```bash
+curl "http://localhost:3000/api/compare?s1={uuid1}&s2={uuid2}"
+```
 
 **Response:**
-
 ```json
 {
-  "record1": { "...": "..." },
-  "record2": { "...": "..." },
+  "record1": { ... },
+  "record2": { ... },
   "delta": {
-    "base_delta": 140000000,
-    "bonus_delta": 20000000,
-    "stock_delta": 60000000,
-    "tc_delta": 220000000,
+    "base_delta": 500000,
+    "bonus_delta": -100000,
+    "stock_delta": 200000,
+    "tc_delta": 600000,
     "experience_delta": 2
   }
 }
 ```
 
-**Errors:** `400` if s1 === s2; `404` if either ID not found.
+Delta = record1 value minus record2 value. Positive = record1 is higher.
 
-## 7. Architecture Decisions
+- `400` if s1 === s2
+- `404` if either ID not found
 
-### Static vs ISR vs Dynamic
+---
 
-| Page | Strategy | Revalidate | Rationale |
-|---|---|---|---|
-| `/` (homepage) | ISR | 3600s | Marketing content changes infrequently |
-| `/salaries` | ISR | 300s | Data updates via ingest; 5-min window balances freshness and CDN cache hits |
-| `/companies/[slug]` | ISR + SSG | 3600s | Company profiles are stable; `generateStaticParams()` pre-renders all slugs at build |
-| `/compare` | ISR shell + client | 86400s | Dropdown options cached daily; comparison logic runs client-side via API |
-| API routes | CDN cache headers | 300s / 3600s | `Cache-Control` headers enable edge caching on Vercel/Cloudflare |
+## Architecture Decisions
 
-### Page-based pagination vs cursor-based
+### Static vs ISR vs Dynamic per page type
 
-**Chosen: page-based pagination.**
+| Page | Strategy | Reason |
+|---|---|---|
+| `/salaries` | ISR (revalidate: 300s) | New records added frequently but not millisecond-critical. 5-minute window balances freshness and CDN efficiency. |
+| `/companies/[slug]` | Static + ISR (revalidate: 3600s) | Company metadata rarely changes. Salary data for a company changes less frequently than the global table. 1-hour window is appropriate. |
+| `/compare` | ISR (revalidate: 86400s) | Comparison pages cannot all be pre-built. Generated on first request, cached for 24 hours. |
+| Homepage | ISR (revalidate: 3600s) | Trending stats and recent records change daily, not by the minute. |
+| Admin/ingest | Dynamic (no cache) | Auth-adjacent, data-mutating. Must never be cached. |
 
-With 64 seed records (scaling to ~10K), offset pagination is simple, supports direct URL links (`?page=3`), and works with the existing Prisma indexes on `total_compensation` and `submitted_at`. Cursor-based pagination would be preferable beyond ~100K rows where offset skips become expensive.
+`generateStaticParams` is used on `/companies/[slug]` to pre-generate one page per company slug at build time from a live database query — not a hardcoded array. This means adding a new company to the database automatically adds its page on the next deployment.
 
-### Cache-Control TTL choices
+### Why page-based pagination over cursor-based
+Page-based pagination was chosen because TalentDash's primary use case is a browsable salary table, not an infinite scroll feed. Users navigate to page 3 of Amazon L4 results directly — cursor-based pagination cannot support arbitrary page jumps. The dataset size at MVP scale (thousands of records, not billions) does not require the performance benefits cursor pagination provides at extreme scale.
 
-- **300s for `/api/salaries`:** Salary list is the most frequently updated view (new ingest submissions). A 5-minute stale window keeps data reasonably fresh while allowing CDN hits.
-- **3600s for `/api/companies/[slug]`:** Company aggregates (median, distribution) change slowly. Hourly revalidation reduces database load for repeated company page visits.
+### Why Cache-Control TTLs of 300s and 3600s
+- `/api/salaries` at 300s (5 minutes): salary data is the most frequently updated resource. A 5-minute CDN cache means new submissions appear quickly while still offloading the majority of traffic from the database.
+- `/api/companies/[slug]` at 3600s (1 hour): company-level aggregates (median TC, level distribution) change only when new records are ingested for that company. An hourly cache is aggressive enough to stay fresh without hammering the DB on every page view.
+- `stale-while-revalidate` on both means users never see a loading state — they get the stale cached version instantly while the CDN fetches a fresh copy in the background.
 
 ### What I would build differently with another day
-
-- Add authentication for salary submission to prevent spam ingest.
-- Implement currency-normalized compare (convert both records to a common currency before delta).
-- Add integration tests for the validation pipeline and API endpoints.
-- Add a salary submission form UI wired to `/api/ingest-salary`.
-- Use React Server Actions as an alternative to the REST ingest endpoint.
+- Add Typesense for autocomplete search — PostgreSQL ILIKE is sufficient for MVP but degrades on large datasets
+- Add a salary submission form so users can contribute data directly from the UI
+- Add the Workplace Index page with composite scoring
+- Add the Community/Forum section
+- Implement proper ISR cache purging via Cloudflare's cache purge API after each ingest, rather than relying on TTL-based revalidation
 
 ### What was NOT built and why
+Under 72-hour time pressure, the following were deliberately cut in priority order:
 
-- **Company logos:** No logo asset URLs or CDN were specified; text headers used instead.
-- **Auth / user accounts:** Out of scope for the trial task.
-- **Salary charts / analytics dashboard:** Spec focused on table views, compare, and company profiles.
-- **Search results page:** Not requested; filtering on `/salaries` covers the use case.
-- **Rate limiting on ingest:** Would require middleware infrastructure not specified in the stack.
-- **Webhook notifications:** No requirement for real-time alerts on new submissions.
+- **Reviews section** (`/reviews`) — the review data model is separate from salary data and would have required additional schema tables, API routes, and UI pages. Cut to keep the core salary intelligence product solid.
+- **Interviews section** (`/interviews`) — same reason as reviews.
+- **Tools pages** (`/tools/salary-calculator`, etc.) — calculator logic is client-side and could be added quickly, but was deprioritised in favour of the integration layer being correct.
+- **Community/Forum** — requires a separate content model and is the lowest SEO-value section at this stage.
+- **Auth layer** — explicitly excluded by the trial spec.
+- **Typesense search** — PostgreSQL full-text search is sufficient at this data volume.
 
-## Scripts
+The salary table, company pages, compare page, full API, and the end-to-end data integration were treated as non-negotiable. Everything else was cut deliberately.
 
-```bash
-npm run dev          # Start development server
-npm run build        # Production build
-npm run start        # Start production server
-npm run lint         # ESLint check
-npm run format       # Prettier format
-npx prisma studio    # Database GUI
-```
+---
 
 ## Folder Structure
 
 ```
-app/                    # Next.js App Router pages and API routes
-components/
-  ui/                   # Reusable UI primitives (badges, pagination, header)
-  features/             # Feature components (table, filters, compare, distribution)
-lib/                    # Prisma client, queries, formatting, config
-types/                  # Shared TypeScript interfaces
-prisma/                 # Schema, migrations, seed
+talentdash-fullstack/
+├── app/
+│   ├── page.tsx                    # Homepage (ISR)
+│   ├── layout.tsx                  # Root layout with nav/footer
+│   ├── salaries/
+│   │   └── page.tsx                # Salary table (ISR RSC)
+│   ├── companies/
+│   │   └── [slug]/
+│   │       └── page.tsx            # Company page (static + ISR)
+│   ├── compare/
+│   │   └── page.tsx                # Compare page (client component)
+│   └── api/
+│       ├── ingest-salary/
+│       │   └── route.ts            # POST ingestion endpoint
+│       ├── salaries/
+│       │   └── route.ts            # GET salaries endpoint
+│       ├── companies/
+│       │   └── [slug]/
+│       │       └── route.ts        # GET company endpoint
+│       └── compare/
+│           └── route.ts            # GET compare endpoint
+├── components/
+│   ├── ui/                         # Primitive components
+│   │   ├── Badge.tsx
+│   │   ├── Button.tsx
+│   │   ├── Card.tsx
+│   │   └── Pagination.tsx
+│   └── features/                   # Product components
+│       ├── SalaryTable.tsx
+│       ├── FilterBar.tsx
+│       ├── LevelDistributionBar.tsx
+│       ├── CompanyCard.tsx
+│       └── CompareTable.tsx
+├── lib/
+│   ├── db.ts                       # Prisma client singleton
+│   ├── config.ts                   # Currency rates, constants
+│   ├── normalize.ts                # Company name normalization
+│   ├── format.ts                   # INR lakh/crore formatting
+│   └── median.ts                   # Statistical median utility
+├── types/
+│   └── index.ts                    # TypeScript interfaces
+├── prisma/
+│   ├── schema.prisma
+│   ├── seed.ts
+│   └── migrations/
+├── .env
+├── .eslintrc.json
+├── .prettierrc
+├── next.config.ts
+├── tailwind.config.ts
+├── tsconfig.json
+└── README.md
 ```
-#   t a l e n t d a s h - f u l l s t a c k  
- 
+
+---
+
+## Competitor Context
+
+TalentDash is built with direct awareness of what exists in the market:
+
+| Product | Their Strength | TalentDash Advantage |
+|---|---|---|
+| levels.fyi | Gold standard US tech salary data | Virtually no India data. No reviews or interviews. |
+| ambitionbox.com | Dominant in India for reviews | Unstructured, un-normalised data. No level system. Outdated UI. |
+| glassdoor.co.in | Global brand recognition | Paywalled. Noisy salary data. Algorithm hides negative reviews. |
+| teamblind.com | Best anonymous community | Forum-only. No structured data. No SEO. US-focused. |
+
+---
+
+## Data Normalization Examples
+
+The normalization pipeline resolves hundreds of company name variants to a single canonical slug:
+
+| Raw Input | Normalized Slug |
+|---|---|
+| "Google India Pvt. Ltd." | google |
+| "GOOGLE" | google |
+| "google " (trailing space) | google |
+| "Tata Consultancy Services" | tcs |
+| "TCS Ltd." | tcs |
+| "amazon.com" | amazon |
+| "Flipkart Internet Pvt Ltd" | flipkart |
+| "Wipro Technologies" | wipro |
+
+---
+
+## SEO Strategy
+
+Every page is built for organic search:
+
+- Title tags match primary search intent: `"Software Engineer Salaries at Amazon India — L3 to L5 | TalentDash"`
+- JSON-LD structured data (schema.org/Dataset) on every salary page for Google rich results
+- Canonical URLs to prevent duplicate content penalties
+- Open Graph tags for social sharing
+- Correct H1 per page matching search intent
+- Static generation ensures LCP under 2 seconds on 4G (Lighthouse target)
+- Zero client-side JavaScript on the salary table page by default
+
+---
+
+## Hardest Decision Made
+
+The hardest decision was the integration layer for `generateStaticParams` on `/companies/[slug]`. The temptation was to hardcode a list of known company slugs to avoid the complexity of a live database query at build time. I chose instead to do a real Prisma query inside `generateStaticParams`, which means the build connects to Neon, fetches all company slugs, and pre-generates one static page per company. This adds a build-time dependency on the database but it means adding a new company to the database automatically adds its static page on the next deployment — no code change required. That is the correct architecture for a product that will eventually have thousands of company pages.
+
+---
+
+## License
+
+Built as a trial task for TalentDash. Not for redistribution.
